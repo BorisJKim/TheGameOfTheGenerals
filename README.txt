@@ -7,7 +7,7 @@ Graduate Project - Converting the board game "The Game Of The Generals" for PC a
 This README file will be described about new version each time when commited and pushed to GitHub server.
 이 README 파일은 매번 GitHub 서버에 올릴 때마다 해당 새 버전에 대해 기술하게 될 것입니다.
 
-2014. 8. 22. Fri.
+2014. 8. 22. Fri. Version 0.5
   First using GitHub.
   Cannot play this game yet. It isn't completed.
   The part of starting (placing units) has just been completed.
