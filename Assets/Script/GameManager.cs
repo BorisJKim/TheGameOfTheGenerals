@@ -39,7 +39,6 @@ public class GameManager : MonoBehaviour {
 
 	unitClass[,] map = new unitClass[9, 8];
 	int[] myCount = new int[15] {1, 2, 6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-	//int[] enemyCount = new int[15] {1, 2, 6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
 	unitClass id = unitClass.NoUnit;
 
@@ -49,6 +48,11 @@ public class GameManager : MonoBehaviour {
 	bool myTurn = false;
 	bool enemyTurn = false;
 	bool moving = false;
+
+	bool turnOver = false;
+	int startX, startY, destX, destY;
+	unitClass startClass, destClass;
+	float turnCount = 0;
 
 	RaycastHit hit = new RaycastHit();
 
@@ -79,28 +83,66 @@ public class GameManager : MonoBehaviour {
 					else if(map[ShellX(hit.point.x), ShellY(hit.point.y)] != unitClass.NoUnit) Debug.Log("You Cannot Place Your Unit There (There Is Another Unit Already)");
 					else {
 						GameObject newUnit = GameObject.Find(id.ToString());
-						Instantiate(newUnit, new Vector3((float)ShellPositionX(ShellX(hit.point.x)),(float)ShellPositionY(ShellY(hit.point.y)),-25.4f), Quaternion.identity);
+						Instantiate(newUnit, new Vector3((float)ShellPositionX(ShellX(hit.point.x)), (float)ShellPositionY(ShellY(hit.point.y)), -25.4f), Quaternion.identity);
 						map[ShellX(hit.point.x), ShellY(hit.point.y)] = id;
 						myCount[((int)id - 1)]--;
 						placing = false;
 					}
 				}
-				/*if(gameStart && myTurn) {
-					int startX, startY;
-					unitClass startClass;
-					if(map[ShellX(hit.point.x), ShellY(hit.point.y)] != unitClass.NoUnit) {
-						moving = true;
+				if(gameStart && myTurn) {
+					turnOver = false;
+					if(!moving) {
 						startX = ShellX(hit.point.x);
 						startY = ShellY(hit.point.y);
 						startClass = map[startX, startY];
+						if(CanMoveStart(startX, startY)) moving = true;
+						else Debug.Log("Choose Your Unit Which Can Move");
 					}
 					if(moving) {
-						if(((startX == ShellX(hit.point.x)) && (((startY - ShellY(hit.point.y)) == 1) || ((startY - ShellY(hit.point.y)) == -1))) ||
-						   ((startY == ShellY(hit.point.y)) && (((startX - ShellX(hit.point.x)) == 1) || ((startX - ShellX(hit.point.x)) == -1)))) {
-						   
+						destX = ShellX(hit.point.x);
+						destY = ShellY(hit.point.y);
+						destClass = map[destX, destY];
+						if(CanMoveDest(startX, startY, destX, destY)) {
+						   	MoveUnit(startX, startY, destX, destY);
+						   	if((int)destClass < 0) Battle(destX, destY, startClass, destClass);
+						   	turnOver = true;
+						   	moving = false;
 						}
 					}
-				}*/
+					if(turnOver) {
+						turnCount += 0.5f;
+						enemyTurn = true;
+						myTurn = false;
+					}
+				}
+			}
+		}
+		if(gameStart && enemyTurn) {
+			turnOver = false;
+			if(!moving) {
+				for(i = 9; i < 72; i++) {
+					startX = i % 9;
+					startY = i / 9;
+					startClass = map[startX, startY];
+					if((int)startClass < 0) {
+						moving = true;
+						break;
+					}
+				}
+			}
+			if(moving) {
+				destX = startX;
+				destY = startY - 1;
+				destClass = map[destX, destY];
+			   	MoveUnit(startX, startY, destX, destY);
+			   	if((int)destClass > 0) Battle(destX, destY, startClass, destClass);
+			   	turnOver = true;
+			   	moving = false;
+			}
+			if(turnOver) {
+				turnCount += 0.5f;
+				myTurn = true;
+				enemyTurn = false;
 			}
 		}
 	}
@@ -116,8 +158,12 @@ public class GameManager : MonoBehaviour {
 
 		GUI.Label (new Rect (1500, 330, 300, 30), "Mouse Point Ray Hit On " + hit.point.ToString ());
 		GUI.Label (new Rect (1500, 360, 300, 30), "Shell Position Of Ray Hit : (" + ShellX(hit.point.x) + ", " + ShellY(hit.point.y) + ")");
+		if (gameStart) {
+			GUI.Label (new Rect (1500, 390, 300, 30), "Turn No. " + (int)turnCount);
+			GUI.Label (new Rect (1500, 420, 300, 30), ((myTurn) ? "Your Turn." : "Enemy's Turn."));
+		}
 
-		if (gameStart == false) {		
+		if (!gameStart) {
 			GUI.Box (new Rect (135, 90, 240, 360), "Place Your Units Manually");
 			int sg = GUI.SelectionGrid (new Rect (150, 135, 210, 300), -1, classes, 2);
 			if (sg >= 0) {
@@ -127,26 +173,24 @@ public class GameManager : MonoBehaviour {
 					placing = true;
 				}
 			}
-			if(placeComplete == false) {
+			if (!placeComplete) {
 				if (GUI.Button (new Rect (150, 465, 150, 30), "Place Randomly")) {
 					placeRandomly();
 						placeComplete = true;
 				}
 			}
-			if (placeComplete == true) {
+			if (placeComplete) {
 				if (GUI.Button (new Rect (150, 500, 150, 30), "Game Start")) {
 					placeEnemyUnits();
-					Debug.Log ("Game Start");
 					if(Random.Range(0,2) == 1) {
 						myTurn = true;
 						enemyTurn = false;
-						Debug.Log("You First.");
 					}
 					else {
 						enemyTurn = true;
 						myTurn = false;
-						Debug.Log("Enemy First.");
 					}
+					turnCount = 1;
 					gameStart = true;
 				}
 			}
@@ -315,5 +359,129 @@ public class GameManager : MonoBehaviour {
 			array[i] = array[r];
 			array[r] = temp;
 		}
+	}
+
+	bool CanMoveStart (int sx, int sy) {
+		if ((int)map [sx, sy] <= 0) return false;
+		if ((sx < 8) && ((int)map [(sx + 1), sy] <= 0)) return true;
+		if ((sx > 0) && ((int)map [(sx - 1), sy] <= 0)) return true;
+		if ((sy < 7) && ((int)map [sx, (sy + 1)] <= 0)) return true;
+		if ((sy > 0) && ((int)map [sx, (sy - 1)] <= 0)) return true;
+		return false;
+	}
+
+	bool CanMoveDest (int startX, int startY, int destX, int destY) {
+		if ((int)map [destX, destY] > 0) return false;
+		if (startX == destX) {
+			if(startY - destY == 1) return true;
+			if(startY - destY == -1) return true;
+		}
+		if (startY == destY) {
+			if(startX - destX == 1) return true;
+			if(startX - destX == -1) return true;
+		}
+		return false;
+	}
+
+	void MoveUnit (int startX, int startY, int destX, int destY) {
+		GameObject[] units = GameObject.FindObjectsOfType<GameObject>();
+		GameObject startUnit = null;
+		foreach (GameObject go in units) {
+			if (go.transform.position == new Vector3((float)ShellPositionX(startX), (float)ShellPositionY(startY), -25.4f)) {
+				startUnit = go;
+				break;
+			}
+		}
+
+		// Animation
+
+		startUnit.transform.position = new Vector3 ((float)ShellPositionX(destX), (float)ShellPositionY(destY), -25.4f);
+		map [startX, startY] = unitClass.NoUnit;
+		map [destX, destY] = startClass;
+	}
+
+	void Battle (int sx, int sy, unitClass atkClass, unitClass defClass) {
+		GameObject[] units = GameObject.FindObjectsOfType<GameObject>();
+		GameObject atkUnit = null;
+		GameObject defUnit = null;
+		foreach (GameObject go in units) {
+			if (go.transform.position == new Vector3((float)ShellPositionX(sx), (float)ShellPositionY(sy), -25.4f)) {
+				if(go.GetComponent<Unit>().unitClassId == (int)atkClass) atkUnit = go;
+				if(go.GetComponent<Unit>().unitClassId == (int)defClass) defUnit = go;
+			}
+		}
+
+		// Animation
+
+		if (defClass == unitClass.EnemyFlag) {
+			Destroy(defUnit);
+			map[sx, sy] = atkClass;
+			Debug.Log ("You Win!!!!");
+			GameFinished();
+		}
+		if (defClass == unitClass.MyFlag) {
+			Destroy(defUnit);
+			map[sx, sy] = atkClass;
+			Debug.Log ("You Lose...");
+			GameFinished();
+		}
+		if (((int)atkClass + (int)defClass) == 0) {
+			Destroy(atkUnit);
+			Destroy(defUnit);
+			map[sx, sy] = unitClass.NoUnit;
+		}
+		if (Mathf.Abs((int)atkClass) == 2) {
+			if (Mathf.Abs((int)defClass) == 3) {
+				Destroy (atkUnit);
+				map [sx, sy] = defClass;
+			}
+			else {
+				Destroy (defUnit);
+				map [sx, sy] = atkClass;
+			}
+		}
+		if (Mathf.Abs((int)defClass) == 2) {
+			if(Mathf.Abs((int)atkClass) == 3) {
+				Destroy(defUnit);
+				map[sx, sy] = atkClass;
+			}
+			else {
+				Destroy(atkUnit);
+				map[sx, sy] = defClass;
+			}
+		}
+		if (((int)atkClass + (int)defClass) > 0) {
+			if((int)atkClass > 0) {
+				Destroy(defUnit);
+				map[sx, sy] = atkClass;
+			}
+			else {
+				Destroy(atkUnit);
+				map[sx, sy] = defClass;
+				if(atkClass == unitClass.EnemyFlag) {
+					Debug.Log ("You Win!!!!");
+					GameFinished();
+				}
+			}
+		}
+		if (((int)atkClass + (int)defClass) < 0) {
+			if((int)atkClass > 0) {
+				Destroy(atkUnit);
+				map[sx, sy] = defClass;
+				if(atkClass == unitClass.MyFlag) {
+					Debug.Log ("You Lose...");
+					GameFinished();
+				}
+			}
+			else {
+				Destroy(defUnit);
+				map[sx, sy] = atkClass;
+			}
+		}
+	}
+
+	void GameFinished () {
+		Debug.Log ("Game Finished.");
+		gameStart = false;
 	}
 }
